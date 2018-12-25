@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.RadioButton?>
+<?import javafx.scene.control.ToggleGroup?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<AnchorPane id="AnchorPane" prefHeight="600.0" prefWidth="1000.0" xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.opencv.webcame.VideoController">
+ <children>
+      <Pane layoutX="376.0" layoutY="14.0" prefHeight="60.0" prefWidth="1000.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+         <children>
+            <Label fx:id="message" alignment="CENTER" contentDisplay="CENTER" prefHeight="60.0" prefWidth="1000.0" style="-fx-background-color: #016ebc;" text="Canon Device is ready" textAlignment="CENTER" textFill="WHITE">
+               <font>
+                  <Font name="System Bold" size="24.0" />
+               </font></Label>
+         </children></Pane>
+      <Pane layoutX="19.0" layoutY="67.0" prefHeight="460.0" prefWidth="690.0" AnchorPane.bottomAnchor="70.0" AnchorPane.leftAnchor="10.0" AnchorPane.topAnchor="70.0">
+         <children>
+            <VBox alignment="CENTER" prefHeight="460.0" prefWidth="690.0">
+               <children>
+                  <ImageView fx:id="liveImage" fitHeight="450.0" pickOnBounds="true" preserveRatio="true">
+                     <image>
+                        <Image url="@../../../resource/humenImage.jpg" />
+                     </image>
+                  </ImageView>
+               </children>
+            </VBox>
+         </children>
+      </Pane>
+      <Pane layoutX="732.0" layoutY="60.0" prefHeight="460.0" prefWidth="270.0" AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="70.0">
+         <children>
+            <VBox alignment="CENTER" layoutX="-2.0" layoutY="-3.0" prefHeight="460.0" prefWidth="280.0" spacing="3.0">
+               <children>
+                  <HBox alignment="CENTER" prefHeight="150.0" prefWidth="280.0">
+                     <children>
+                        <ImageView fx:id="image1" fitHeight="140.0" pickOnBounds="true" preserveRatio="true">
+                           <image>
+                              <Image url="@../../../resource/humenImage.jpg" />
+                           </image></ImageView>
+                        <Pane prefHeight="150.0" prefWidth="97.0">
+                           <children>
+                              <Button layoutX="30.0" layoutY="90.0" mnemonicParsing="false" onAction="#deleteOneAction" prefHeight="30.0" prefWidth="30.0">
+                                 <graphic>
+                                    <ImageView fitHeight="17.0" fitWidth="21.0" pickOnBounds="true" preserveRatio="true">
+                                       <image>
+                                          <Image url="@../../../resource/cancel_16.png" />
+                                       </image>
+                                    </ImageView>
+                                 </graphic></Button>
+                              <RadioButton fx:id="selectOne" layoutX="37.0" layoutY="45.0" mnemonicParsing="false" prefHeight="30.0" prefWidth="30.0">
+                                 <toggleGroup>
+                                    <ToggleGroup fx:id="canonImage" />
+                                 </toggleGroup></RadioButton>
+                           </children>
+                        </Pane>
+                     </children>
+                  </HBox>
+                  <HBox alignment="CENTER" prefHeight="150.0" prefWidth="280.0">
+                     <children>
+                        <ImageView fx:id="image2" fitHeight="140.0" pickOnBounds="true" preserveRatio="true">
+                           <image>
+                              <Image url="@../../../resource/humenImage.jpg" />
+                           </image></ImageView>
+                        <Pane prefHeight="150.0" prefWidth="97.0">
+                           <children>
+                              <Button layoutX="30.0" layoutY="90.0" mnemonicParsing="false" onAction="#deleteTwoAction" prefHeight="30.0" prefWidth="30.0">
+                                 <graphic>
+                                    <ImageView fitHeight="20.0" fitWidth="20.0" pickOnBounds="true" preserveRatio="true">
+                                       <image>
+                                          <Image url="@../../../resource/cancel_16.png" />
+                                       </image>
+                                    </ImageView>
+                                 </graphic>
+                              </Button>
+                              <RadioButton fx:id="selectTwo" layoutX="37.0" layoutY="45.0" mnemonicParsing="false" prefHeight="30.0" prefWidth="30.0" toggleGroup="$canonImage" />
+                           </children>
+                        </Pane>
+                     </children>
+                  </HBox>
+                  <HBox alignment="CENTER" prefHeight="150.0" prefWidth="280.0">
+                     <children>
+                        <ImageView fx:id="image3" fitHeight="140.0" pickOnBounds="true" preserveRatio="true">
+                           <image>
+                              <Image url="@../../../resource/humenImage.jpg" />
+                           </image></ImageView>
+                        <Pane prefHeight="175.0" prefWidth="97.0">
+                           <children>
+                              <Button layoutX="30.0" layoutY="90.0" mnemonicParsing="false" onAction="#deleteThreeAction" prefHeight="30.0" prefWidth="30.0">
+                                 <graphic>
+                                    <ImageView fitHeight="20.0" fitWidth="20.0" pickOnBounds="true" preserveRatio="true">
+                                       <image>
+                                          <Image url="@../../../resource/cancel_16.png" />
+                                       </image>
+                                    </ImageView>
+                                 </graphic>
+                              </Button>
+                              <RadioButton fx:id="selectTHree" layoutX="37.0" layoutY="45.0" mnemonicParsing="false" prefHeight="30.0" prefWidth="30.0" toggleGroup="$canonImage" />
+                           </children>
+                        </Pane>
+                     </children>
+                  </HBox>
+               </children>
+            </VBox>
+         </children>
+      </Pane>
+      <Pane prefHeight="60.0" prefWidth="1000.0" AnchorPane.topAnchor="540.0">
+         <children>
+            <Button layoutX="464.0" layoutY="16.0" mnemonicParsing="false" onAction="#captureAction" prefHeight="30.0" prefWidth="150.0" styleClass="buttons" stylesheets="@../../../style/cannon.css" text="Capture" />
+            <Button fx:id="save" layoutX="304.0" layoutY="16.0" mnemonicParsing="false" onAction="#saveAction" prefHeight="30.0" prefWidth="150.0" styleClass="buttons" stylesheets="@../../../style/cannon.css" text="Save" />
+            <Button layoutX="624.0" layoutY="16.0" mnemonicParsing="false" onAction="#closeAction" prefHeight="30.0" prefWidth="150.0" styleClass="buttons" stylesheets="@../../../style/cannon.css" text="Close" />
+         </children>
+      </Pane>
+   </children>
+</AnchorPane>
