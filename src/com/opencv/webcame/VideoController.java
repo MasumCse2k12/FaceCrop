@@ -11,12 +11,10 @@ import java.util.ResourceBundle;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import javafx.animation.AnimationTimer;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.RadioButton;
@@ -84,7 +82,7 @@ public class VideoController implements Initializable {
                 frameGrabber = new Runnable() {
                     @Override
                     public void run() {
-                        System.out.println(">>>>>>>>>>>run>>>>>>>>>");
+//                        System.out.println(">>>>>>>>>>>run>>>>>>>>>");
                         try {
                             Mat frame = grabFrame();
                             if (!frame.empty()) {
@@ -226,41 +224,7 @@ public class VideoController implements Initializable {
        }
    
    }
-//   
-//   
-//   public void setClosed(){
-//       try {
-//           if (this.timer != null && !this.timer.isShutdown()) {
-//               try {// stop the timer
-//                   this.timer.shutdown();
-//                   this.timer.awaitTermination(33, TimeUnit.MILLISECONDS);
-//                } catch (InterruptedException e) {
-//                    // log any exception
-//                    System.err.println("Exception in stopping the frame capture, trying to release the camera now... " + e);
-//                }
-//            }
-//           
-//           if (this.camera.isLiveViewActive()) {
-//                this.camera.endLiveView();
-//                this.camera.closeSession();
-//                this.closeCamera();
-//
-//           }else{
-//               this.closeCamera();
-//                Stage stage = (Stage) save.getScene().getWindow();
-//                stage.close();
-//           
-//           }
-//           
-//          
-//       } catch (Exception e) {
-//           e.printStackTrace();
-//       }
-//   
-//   
-//   
-//   }
-//    
+
 
 
  /**
@@ -283,8 +247,8 @@ public class VideoController implements Initializable {
             }
         }
         
-        System.out.println("height :"+frame.height());
-        System.out.println("weight :"+frame.width());
+//        System.out.println("height :"+frame.height());
+//        System.out.println("weight :"+frame.width());
 
         return frame;
     }
@@ -319,10 +283,23 @@ public class VideoController implements Initializable {
         
 
         // each rectangle in faces is a face: draw them!
+        Rect rect_Crop=null;
         Rect[] facesArray = faces.toArray();
         for (int i = 0; i < facesArray.length; i++) {
+            rect_Crop = new Rect(facesArray[i].x-50, facesArray[i].y-100, facesArray[i].width+100, facesArray[i].height+175);
+            Size s= new Size();
+            s=rect_Crop.size();
+            System.out.println(">>>"+s);
+            System.out.println(">height>>"+s.height);
+            System.out.println(">width>>"+s.width);
             Imgproc.rectangle(frame, facesArray[i].tl(), facesArray[i].br(), new Scalar(0, 255, 0), 3);
         }
+        
+//        Rect rect_Crop=null;
+//            Rect[] facesArray = faces.toArray();
+//            for (int i = 0; i < facesArray.length; i++) {
+//                rect_Crop = new Rect(facesArray[i].x-50, facesArray[i].y-100, facesArray[i].width+100, facesArray[i].height+175);
+//            }
 
     }
 
@@ -407,14 +384,22 @@ public class VideoController implements Initializable {
                 rect_Crop = new Rect(facesArray[i].x-50, facesArray[i].y-100, facesArray[i].width+100, facesArray[i].height+175);
             }
             try {
+                System.out.println(">>>"+faces.dataAddr());
+                
                 if(faces.dataAddr()!=0){
-                Mat image_roi = new Mat(image,rect_Crop);
-                out=getBufferedImageFromMat(image_roi);
+                    System.out.println(">>>image>>"+image.size());
+                    System.out.println(">>>rect_crop>>"+rect_Crop.area());
+                    System.out.println(">>>rect_crop>>"+rect_Crop.size());
+                    Mat image_roi = new Mat(image,rect_Crop);
+                    out=getBufferedImageFromMat(image_roi);
             }else{
                 System.out.println("face not found");
+                System.out.println(">>>image>>"+image.size());
+                    System.out.println(">>>rect_crop>>"+rect_Crop.area());
+                    System.out.println(">>>rect_crop>>"+rect_Crop.size());
             }
             } catch (Exception e) {
-                e.printStackTrace();
+                System.out.println("face not found");
             }
             System.out.println(">>>return");
             return  out;
