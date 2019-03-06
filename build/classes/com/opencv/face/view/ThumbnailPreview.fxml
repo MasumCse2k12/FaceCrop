@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<AnchorPane id="testBtn" prefHeight="665.0" prefWidth="1300.0" style="-fx-background-color: white;" xmlns="http://javafx.com/javafx/8.0.141" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.opencv.webcame.ThumbnailPreviewController">
+   <children>
+      <Pane prefHeight="45.0" prefWidth="1300.0" style="-fx-background-color: #060f14;" AnchorPane.leftAnchor="5.0" AnchorPane.rightAnchor="5.0" AnchorPane.topAnchor="5.0">
+         <children>
+            <Label alignment="CENTER" contentDisplay="CENTER" prefHeight="40.0" prefWidth="1290.0" text="Thumbnail Preview" textAlignment="CENTER" textFill="WHITE">
+               <font>
+                  <Font name="System Bold" size="18.0" />
+               </font>
+            </Label>
+         </children>
+      </Pane>
+      <Pane layoutX="54.0" layoutY="65.0" prefHeight="480.0" prefWidth="640.0" style="-fx-border-color: #cdcdcd;" AnchorPane.bottomAnchor="5.0" AnchorPane.leftAnchor="5.0" AnchorPane.topAnchor="55.0">
+         <children>
+            <VBox alignment="TOP_CENTER" prefHeight="605.0" prefWidth="640.0">
+               <children>
+                  <HBox alignment="CENTER" prefHeight="589.0" prefWidth="640.0" style="-fx-border-color: #cdcdcd;">
+                     <children>
+                        <ImageView fx:id="capturedImage" fitWidth="600.0" pickOnBounds="true" preserveRatio="true" />
+                     </children>
+                  </HBox>
+                  <HBox alignment="CENTER" prefHeight="100.0" prefWidth="640.0" style="-fx-background-color: #f1f1f1;">
+                     <children>
+                        <Button fx:id="okBtn" mnemonicParsing="false" prefHeight="45.0" prefWidth="220.0" styleClass="buttons" stylesheets="@../../../../style/common.css" text="Close">
+                           <font>
+                              <Font name="System Bold" size="14.0" />
+                           </font>
+                        </Button>
+                     </children>
+                  </HBox>
+               </children>
+            </VBox>
+         </children>
+      </Pane>
+      <Pane layoutX="645.0" layoutY="55.0" prefHeight="605.0" prefWidth="645.0" style="-fx-border-color: #cdcdcd;" AnchorPane.bottomAnchor="5.0" AnchorPane.leftAnchor="650.0" AnchorPane.rightAnchor="5.0" AnchorPane.topAnchor="55.0">
+         <children>
+            <ScrollPane prefHeight="605.0" prefWidth="645.0">
+              <content>
+                <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="603.0" prefWidth="643.0">
+                     <children>
+                        <TableView fx:id="icaoTableView" prefHeight="605.0" prefWidth="645.0">
+                          <columns>
+                            <TableColumn id="idProperty" prefWidth="397.0" text="Property" />
+                            <!--<TableColumn id="idStatus" prefWidth="131.0" text="Status" />-->
+                              <TableColumn id="idScore" prefWidth="116.0" text="Score" />
+                          </columns>
+                        </TableView>
+                     </children>
+                  </AnchorPane>
+              </content>
+            </ScrollPane>
+         </children>
+      </Pane>
+   </children>
+</AnchorPane>
