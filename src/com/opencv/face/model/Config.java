@@ -15,16 +15,18 @@ import java.util.List;
  * @author User
  */
 public class Config {
+
     public List<FaceAttribute> icaoAttributes = Arrays.asList(
-        new FaceAttribute(FaceAttributeId.BLURNESS, "Blurness score"),
-        new FaceAttribute(FaceAttributeId.SHARPNESS, "Sharpness score"),
-        new FaceAttribute(FaceAttributeId.BRIGHTNESS, "Brightness score"),
-        new FaceAttribute(FaceAttributeId.CONTRAST, "Contrast score"),
-        new FaceAttribute(FaceAttributeId.NOSE, "Nose score"),
-        new FaceAttribute(FaceAttributeId.EYE_STATUS_L, "Left eye status score"),
-        new FaceAttribute(FaceAttributeId.EYE_STATUS_R, "Right eye status score"),  
-        new FaceAttribute(FaceAttributeId.MOUTH_STATUS, "Mouth status score"),
-        new FaceAttribute(FaceAttributeId.FACE_CONFIDENCE, "Face Score")    
-        );  
-    
+            new FaceAttribute(FaceAttributeId.BLURNESS, "Blurness score"),
+            new FaceAttribute(FaceAttributeId.SHARPNESS, "Sharpness score"),
+            new FaceAttribute(FaceAttributeId.BRIGHTNESS, "Brightness score"),
+            new FaceAttribute(FaceAttributeId.CONTRAST, "Contrast score"),
+            new FaceAttribute(FaceAttributeId.NOSE, "Nose score"),
+            new FaceAttribute(FaceAttributeId.EYE_STATUS_L, "Left eye status score"),
+            new FaceAttribute(FaceAttributeId.EYE_STATUS_R, "Right eye status score"),
+            new FaceAttribute(FaceAttributeId.MOUTH_STATUS, "Mouth status score"),
+            new FaceAttribute(FaceAttributeId.FACE_CONFIDENCE, "Face Score"),
+            new FaceAttribute(FaceAttributeId.BACKGROUND_UNIFORMITY, "Background uniformity score")
+    );
+
 }

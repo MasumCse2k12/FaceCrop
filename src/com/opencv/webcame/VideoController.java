@@ -42,10 +42,13 @@ import org.opencv.core.CvType;
 import static org.opencv.core.CvType.CV_16S;
 import static org.opencv.core.CvType.CV_32F;
 import static org.opencv.core.CvType.CV_64F;
+import static org.opencv.core.CvType.CV_8UC1;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
 import org.opencv.core.MatOfDouble;
 import org.opencv.core.MatOfInt;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.MatOfRect;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
@@ -56,7 +59,10 @@ import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
 import org.opencv.objdetect.Objdetect;
+import org.opencv.video.BackgroundSubtractor;
+import org.opencv.video.Video;
 import org.opencv.videoio.VideoCapture;
+import org.opencv.videoio.Videoio;
 
 public class VideoController implements Initializable {
 
@@ -96,6 +102,7 @@ public class VideoController implements Initializable {
     private FrameData frameData;
     private boolean cameraActive = false;
     private int width = 640, height = 480;
+    private BackgroundSubtractor backSub;
 
     private int cropX = 0;
     private int cropY = 0;
@@ -120,6 +127,10 @@ public class VideoController implements Initializable {
     private CascadeClassifier noseCascade = new CascadeClassifier(nose_file);
     private CascadeClassifier mouthCascade = new CascadeClassifier(mouth_file);
     private int absoluteFaceSize;
+    Mat oldFrame;
+    boolean isCrop = false;
+    int binSize = 16;
+    int uniformity_score =0;
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
@@ -133,6 +144,10 @@ public class VideoController implements Initializable {
 
         capturedImages = new HashMap<String, FrameData>();
 
+        backSub = Video.createBackgroundSubtractorMOG2();
+
+        backSub = Video.createBackgroundSubtractorKNN();
+
         if (!this.cameraActive) {
             capture = new VideoCapture(0);
             if (capture.isOpened()) {
@@ -144,6 +159,7 @@ public class VideoController implements Initializable {
                     @Override
                     public void run() {
 //                        System.out.println(">>>>>>>>>>>run>>>>>>>>>");
+
                         try {
                             Mat frame = grabFrame();
                             if (!frame.empty()) {
@@ -284,6 +300,7 @@ public class VideoController implements Initializable {
     protected void captureAction(ActionEvent event) throws IOException {
         Mat mat = grabFrame();
         BufferedImage image = cropingIMage(mat);
+        isCrop = true;
         if (image != null) {
             if (bufferedImageOne == null && bufferedImageThree == null && bufferedImageTwo == null) {
                 bufferedImageOne = cropingIMage(mat);//camera.downloadLiveView();
@@ -310,7 +327,7 @@ public class VideoController implements Initializable {
         } else {
             System.out.println("face not found");
         }
-
+        isCrop = false;
     }
 
     @FXML
@@ -361,6 +378,7 @@ public class VideoController implements Initializable {
                 //read the current frame
                 this.capture.read(frame);
 
+//                frame = this.doBackgroundRemovalAbsDiff(frame);
             } catch (Exception exc) {
                 System.err.println("Exception during the image elaboration" + exc);
             }
@@ -382,6 +400,14 @@ public class VideoController implements Initializable {
         MatOfDouble levelWeights = new MatOfDouble();
         float scale_factor = 1.1f;
         int min_neighbors = 3;
+
+        int totalHeight = (int) Math.ceil(absoluteFaceSize / 0.65);
+        int totalWidth = (int) Math.ceil(absoluteFaceSize / 0.65);
+        double upperFacePart = 0.40;
+        double lowerFacePart = 0.35;
+        double leftFacePart = 0.20;
+        double rightFacePart = 0.20;
+        Rect rectCrop = null;
         //convert the frame in gray scale
         Imgproc.cvtColor(frame, grayFrame, Imgproc.COLOR_BGR2GRAY);
 
@@ -413,17 +439,37 @@ public class VideoController implements Initializable {
         }
         Rect[] facesArray = faces.toArray();
         for (int i = 0; i < facesArray.length; i++) {
-//            rect_Crop = new Rect(facesArray[i].x - 50, facesArray[i].y - 100, facesArray[i].width + 100, facesArray[i].height + 175);
-//            Size s = new Size();
-//            s = rect_Crop.size();
-//            System.out.println(">>>" + s);
-//            System.out.println(">height>>" + s.height);
-//            System.out.println(">width>>" + s.width);
+
+            if ((facesArray[i].x - (int) Math.ceil(leftFacePart * totalWidth)) >= 0 && (facesArray[i].y - (int) Math.ceil(upperFacePart * totalHeight)) >= 0 && (facesArray[i].width + 2 * ((int) Math.ceil(rightFacePart * totalWidth))) <= (frame.width() - facesArray[i].x + (int) Math.ceil(rightFacePart * totalWidth)) && (facesArray[i].height + (int) Math.ceil(lowerFacePart * totalHeight) + (int) Math.ceil(lowerFacePart * totalHeight)) <= (frame.height() - facesArray[i].y + (int) Math.ceil(lowerFacePart * totalHeight))) {
+                this.cropX = facesArray[i].x - (int) Math.ceil(leftFacePart * totalWidth);
+                this.cropY = facesArray[i].y - (int) Math.ceil(upperFacePart * totalHeight);
+                this.cropWidth = facesArray[i].width + 2 * ((int) Math.ceil(rightFacePart * totalWidth));
+                this.cropHeight = facesArray[i].height + (int) Math.ceil(lowerFacePart * totalHeight) + (int) Math.ceil(lowerFacePart * totalHeight);
+
+            } else {
+                setCroppedImagePoint(facesArray[i].x, facesArray[i].y, facesArray[i].width, facesArray[i].height);
+
+            }
+            rectCrop = new Rect(this.cropX, this.cropY, this.cropWidth, this.cropHeight);
+            Mat markedImage = new Mat();
+            if (rectCrop != null) {
+                markedImage = new Mat(frame, rectCrop);
+//                this.doBackgroundRemovalAbsDiff(markedImage);
+//                backgroundSubtraction(markedImage);
+                Mat edgeImage = doSobel(markedImage);
+                Mat edgeHist = new Mat();
+                Imgcodecs.imwrite("D://Sobel.jpg", edgeImage);
+                Imgcodecs.imwrite("D://Canny.jpg", doCanny(markedImage));
+                findContour(markedImage);
+                Imgproc.equalizeHist(edgeImage, edgeHist);
+                Imgcodecs.imwrite("D://Sobel_hist.jpg", edgeHist);
+            }
+
             Point showScoreP = new Point(20, 20);
             String score = "Captured Face  Score : " + weight[i];
             Imgproc.putText(frame, score, showScoreP, 1, 1, new Scalar(0, 255, 0), 2);
 //            System.err.println("rejectLevels Score > " + scoreFace[i] + " levelWeights > " + weight[i]);
-            Imgproc.rectangle(frame, facesArray[i].tl(), facesArray[i].br(), new Scalar(0, 255, 0), 3);
+//            Imgproc.rectangle(frame, facesArray[i].tl(), facesArray[i].br(), new Scalar(0, 255, 0), 3);
 
             Mat faceROI = grayFrame.submat(facesArray[i]);
 
@@ -446,6 +492,9 @@ public class VideoController implements Initializable {
 
             // -- In each face, detect eyes
             MatOfRect eyes = new MatOfRect();
+
+            int eye_distance = 0;
+            Point oldP = new Point();
 //            this.eyesCascade.detectMultiScale(faceROI, eyes, 1.1, 3, 0);
             this.eyesCascade.detectMultiScale3(faceROI, eyes, rejectLevels, levelWeights, 1.1, 3, 0, new Size(5, 5), new Size(), cameraActive);
             List<Rect> listOfEyes = eyes.toList();
@@ -461,14 +510,24 @@ public class VideoController implements Initializable {
 //                        System.err.println("Face rotation : " + Math.tan((leftEyeY - eye.y) / (leftEyeX - eye.x)));
                     }
                 }
-                String eyeScore = "Eye SCore : " + rejectLevels.toArray()[scoreIndex++];
 
-                Imgproc.putText(frame, eyeScore, new Point(20, 35), 1, 1, new Scalar(255, 0, 0), 2);
                 Point eyeCenter = new Point(facesArray[i].x + eye.x + eye.width / 2, facesArray[i].y + eye.y + eye.height / 2);
                 int radius = (int) Math.round((eye.width + eye.height) * 0.25);
                 Imgproc.circle(frame, eyeCenter, radius, new Scalar(255, 0, 0), 2);
 
-//                Imgproc.rectangle(frame, new Point(eyeCenter.x - eye.width / 2, eyeCenter.y), new Point(eyeCenter.x + eye.width / 2, eyeCenter.y + eye.height), new Scalar(0, 255, 255), 1, 4);
+                if (oldP == null) {
+                    oldP = eyeCenter;
+                }
+                if (oldP != null) {
+//                   eye_distance =  (int) Math.hypot(eyeCenter.x - oldP.x, eyeCenter.y - oldP.y);
+                    eye_distance = (int) Math.sqrt(Math.pow(eyeCenter.x - oldP.x, 2) + Math.pow(eyeCenter.y - oldP.y, 2) * 1.0);
+                }
+
+                oldP = eyeCenter;
+                eye_score = rejectLevels.toArray()[scoreIndex++];
+                String eyeScore = "Eye Distance : (" + oldP.x + "," + oldP.y + "),(" + eyeCenter.x + "," + eyeCenter.y + ") : " + eye_distance;
+                Imgproc.putText(frame, eyeScore, new Point(20, 35), 1, 1, new Scalar(255, 0, 0), 2);
+
             }
 
             // Detect nose if classifier provided by the user circle(ROI, Point(n.x + n.width / 2, n.y + n.height / 2), 3, Scalar(0, 255, 0), -1, 8);
@@ -484,9 +543,8 @@ public class VideoController implements Initializable {
                 Point noseCenter = new Point(facesArray[i].x + n.x + n.width / 2, facesArray[i].y + n.y + n.height / 2);
                 nose_center_height = facesArray[i].y + n.y + n.height / 2;
                 int radius = (int) Math.round((n.width + n.height) * 0.25);
-//                Imgproc.circle(frame, new Point(n.x + n.width / 2, n.y + n.height / 2), 3, new Scalar(0, 255, 0), -1, 8);
-                Imgproc.circle(frame, noseCenter, radius, new Scalar(255, 0, 255), 4);
-//                Imgproc.ellipse(frame, box, color);
+
+//                Imgproc.circle(frame, noseCenter, radius, new Scalar(255, 0, 255), 4);
             }
 
             // Detect mouth if classifier provided by the user
@@ -505,13 +563,13 @@ public class VideoController implements Initializable {
 //                    Imgproc.circle(frame, new Point(listOfMouth[i].x + listOfMouth[i].width / 2, listOfMouth[i].y + listOfMouth[i].height / 2), 3, new Scalar(0, 255, 0), -1, 8);
 //                    Imgproc.circle(frame, mouthCenter, radius, new Scalar(0, 255, 255), 4);
                     if (mouth_center_height > nose_center_height) {
-                        Imgproc.rectangle(frame, new Point(facesArray[i].x + listOfMouth[i].x, facesArray[i].y + listOfMouth[i].y), new Point(facesArray[i].x + listOfMouth[i].x + listOfMouth[i].width, facesArray[i].y + listOfMouth[i].y + listOfMouth[i].height), new Scalar(0, 255, 255), 1, 4);
+//                        Imgproc.rectangle(frame, new Point(facesArray[i].x + listOfMouth[i].x, facesArray[i].y + listOfMouth[i].y), new Point(facesArray[i].x + listOfMouth[i].x + listOfMouth[i].width, facesArray[i].y + listOfMouth[i].y + listOfMouth[i].height), new Scalar(0, 255, 255), 1, 4);
                         String mouthScore = "Mouth SCore : " + rejectLevels.toArray()[0];
                         Imgproc.putText(frame, mouthScore, new Point(20, 65), 1, 1, new Scalar(0, 255, 255), 2);
                     } else if (mouth_center_height <= nose_center_height) {
                         continue;
                     } else {
-                        Imgproc.rectangle(frame, new Point(facesArray[i].x + listOfMouth[i].x, facesArray[i].y + listOfMouth[i].y), new Point(facesArray[i].x + listOfMouth[i].x + listOfMouth[i].width, facesArray[i].y + listOfMouth[i].y + listOfMouth[i].height), new Scalar(0, 255, 255), 1, 4);
+//                        Imgproc.rectangle(frame, new Point(facesArray[i].x + listOfMouth[i].x, facesArray[i].y + listOfMouth[i].y), new Point(facesArray[i].x + listOfMouth[i].x + listOfMouth[i].width, facesArray[i].y + listOfMouth[i].y + listOfMouth[i].height), new Scalar(0, 255, 255), 1, 4);
                         String mouthScore = "Mouth SCore : " + rejectLevels.toArray()[0];
                         Imgproc.putText(frame, mouthScore, new Point(20, 65), 1, 1, new Scalar(0, 255, 255), 2);
                     }
@@ -526,6 +584,180 @@ public class VideoController implements Initializable {
 //            for (int i = 0; i < facesArray.length; i++) {
 //                rect_Crop = new Rect(facesArray[i].x-50, facesArray[i].y-100, facesArray[i].width+100, facesArray[i].height+175);
 //            }
+    }
+    boolean useMOG2 = true;
+
+    private Mat doSobel(Mat frame) {
+        // init
+        Mat grayImage = new Mat();
+        Mat detectedEdges = new Mat();
+        int scale = 1;
+        int delta = 0;
+        int ddepth = CvType.CV_16S;
+        Mat grad_x = new Mat();
+        Mat grad_y = new Mat();
+        Mat abs_grad_x = new Mat();
+        Mat abs_grad_y = new Mat();
+
+        // reduce noise with a 3x3 kernel
+        Imgproc.GaussianBlur(frame, frame, new Size(3, 3), 0, 0, Core.BORDER_DEFAULT);
+
+        // convert to grayscale
+        Imgproc.cvtColor(frame, grayImage, Imgproc.COLOR_BGR2GRAY);
+
+        // Gradient X
+        // Imgproc.Sobel(grayImage, grad_x, ddepth, 1, 0, 3, scale,
+        // this.threshold.getValue(), Core.BORDER_DEFAULT );
+        Imgproc.Sobel(grayImage, grad_x, ddepth, 1, 0);
+        Core.convertScaleAbs(grad_x, abs_grad_x);
+
+        // Gradient Y
+        // Imgproc.Sobel(grayImage, grad_y, ddepth, 0, 1, 3, scale,
+        // this.threshold.getValue(), Core.BORDER_DEFAULT );
+        Imgproc.Sobel(grayImage, grad_y, ddepth, 0, 1);
+        Core.convertScaleAbs(grad_y, abs_grad_y);
+
+        // Total Gradient (approximate)
+        Core.addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0, detectedEdges);
+        // Core.addWeighted(grad_x, 0.5, grad_y, 0.5, 0, detectedEdges);
+
+        return detectedEdges;
+
+    }
+
+    private Mat doCanny(Mat frame) {
+
+        // init
+        Mat grayImage = new Mat();
+
+        Mat detectedEdges = new Mat();
+
+        // convert to grayscale
+        Imgproc.cvtColor(frame, grayImage, Imgproc.COLOR_BGR2GRAY);
+
+        // reduce noise with a 3x3 kernel
+        Imgproc.blur(grayImage, detectedEdges, new Size(3, 3));
+
+        // canny detector, with ratio of lower:upper threshold of 3:1
+        Imgproc.Canny(detectedEdges, detectedEdges, 60, 180);
+
+        // using Canny's output as a mask, display the result
+        Mat dest = new Mat();
+
+        frame.copyTo(dest, detectedEdges);
+
+        return dest;
+
+    }
+
+    private void findContour(Mat image) {
+        double maxVal = 0;
+        int maxValIdx = 0;
+        Mat imagegrey = new Mat();
+        Mat imageBlurr = new Mat();
+        Mat imageThr = new Mat();
+        MatOfPoint max_contour = new MatOfPoint();
+
+        Imgproc.cvtColor(image, imagegrey, Imgproc.COLOR_BGR2GRAY);
+        Imgcodecs.imwrite("D:/imagegrey.png", imagegrey);
+        Imgproc.GaussianBlur(imagegrey, imageBlurr, new Size(3, 3), 0);
+        Imgcodecs.imwrite("D:/imageBlurr.png", imageBlurr);
+//        Imgproc.threshold(imageBlurr, imageA,25, 255,Imgproc.THRESH_BINARY); //Threshold the gray
+        Imgproc.adaptiveThreshold(imageBlurr, imageThr, 255, Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY, 7, 5);
+        List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
+        MatOfPoint contour = new MatOfPoint();
+        Imgproc.findContours(imageThr, contours, new Mat(), Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
+        for (int i = 0; i < contours.size(); i++) {
+
+            double contourArea = Imgproc.contourArea(contours.get(i));
+            if (maxVal < contourArea) {
+                maxVal = contourArea;
+                maxValIdx = i;
+            }
+//            if (Imgproc.contourArea(contours.get(i)) > 50) {
+//                Rect rect = Imgproc.boundingRect(contours.get(i));
+//                if ((rect.height > 35 && rect.height < 60) && (rect.width > 35 && rect.width < 60)) {
+//                    Imgproc.rectangle(image, new Point(rect.x, rect.y), new Point(rect.x + rect.width, rect.y + rect.height), new Scalar(0, 0, 255));
+//                }
+//            }
+        }
+//        System.out.println(" ***************************************************");
+//        Point[] pointC = contours.get(maxValIdx).toArray();
+//        for(int i=0; i< pointC.length ; i++){
+//            System.err.println(" contour > " + pointC[i]);
+//        }
+//        System.out.println(" ***************************************************");
+//        double epsilon = 0.1 * Imgproc.arcLength(new MatOfPoint2f(max_contour.toArray()), true);
+//        MatOfPoint2f approx = new MatOfPoint2f();
+//        Imgproc.approxPolyDP(new MatOfPoint2f(max_contour.toArray()), approx, epsilon, true);
+        Imgproc.drawContours(image, contours, maxValIdx, new Scalar(0, 255, 0), 2);
+
+        Imgcodecs.imwrite("D:/Contour.png", image);
+    }
+
+    private Mat doBackgroundRemovalAbsDiff(Mat currFrame) {
+        Mat greyImage = new Mat();
+        Mat foregroundImage = new Mat();
+        Mat backgroundImage = new Mat();
+
+        if (backgroundImage == null) {
+            backgroundImage = currFrame;
+        }
+
+        if (oldFrame == null) {
+            oldFrame = currFrame;
+        }
+        if (oldFrame != null) {
+            Core.absdiff(oldFrame, currFrame, foregroundImage);
+        }
+
+        if (foregroundImage != null) {
+            Core.absdiff(currFrame, foregroundImage, backgroundImage);
+        }
+//        if (foregroundImage != null) {
+        Imgproc.cvtColor(foregroundImage, greyImage, Imgproc.COLOR_BGR2GRAY);
+
+        int thresh_type = Imgproc.THRESH_BINARY_INV;
+//        if (this.inverse.isSelected()) {
+        thresh_type = Imgproc.THRESH_BINARY;
+//        }
+
+// show the current frame and the fg masks
+//        HighGui.imshow("Frame", currFrame);
+//        HighGui.imshow("FG Mask", foregroundImage);
+        Imgproc.adaptiveThreshold(greyImage, greyImage, 255, Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY, 7, 5);
+//            Imgproc.threshold(greyImage, greyImage, 10, 255, thresh_type);
+        currFrame.copyTo(foregroundImage, greyImage);
+
+        Imgcodecs.imwrite("D:\\currFrame.jpg", currFrame);
+        Imgcodecs.imwrite("D:\\foregroundImage.jpg", foregroundImage);
+        Imgcodecs.imwrite("D:\\backgroundImage.jpg", backgroundImage);
+
+        oldFrame = currFrame;
+//        }
+        return foregroundImage;
+
+    }
+
+    private void backgroundSubtraction(Mat frame) {
+
+        Mat fgMask = new Mat();
+        // update the background model
+        backSub.apply(frame, fgMask);
+        // get the frame number and write it on the current frame
+//        Imgproc.rectangle(frame, new Point(10, 2), new Point(100, 20), new Scalar(255, 255, 255), -1);
+//        String frameNumberString = String.format("%d", (int) capture.get(Videoio.CAP_PROP_POS_FRAMES));
+//        Imgproc.putText(frame, frameNumberString, new Point(15, 15), Core.FONT_HERSHEY_SIMPLEX, 0.5,
+//                new Scalar(0, 0, 0));
+        // show the current frame and the fg masks
+        HighGui.imshow("Frame", frame);
+        HighGui.imshow("FG Mask", fgMask);
+        // get the input from the keyboard
+        int keyboard = HighGui.waitKey(30);
+        if (keyboard == 'q' || keyboard == 27) {
+            System.exit(0);
+        }
+
     }
 
     /**
@@ -548,6 +780,7 @@ public class VideoController implements Initializable {
             this.capture.release();
 //                        this.capture.
             this.cameraActive = false;
+            System.exit(0);
             System.out.println(">>>>close>>>");
         }
 
@@ -579,6 +812,108 @@ public class VideoController implements Initializable {
 
     }
 
+    private void calculateUniformity(Mat greyImage, int x, int y, int width, int height, Rect r) {
+        int[] hist = new int[256];
+        for (int i = 0; i < 256; i++) {
+            hist[i] = 0;
+        }
+        boolean isTrue = true;
+        for (int i = x; i < x + width; i++) {
+            for (int j = y; j < y + height; j++) {
+
+                double[] val = greyImage.get(i, j);
+                if (val != null) {
+                    if ((i < r.x || i > r.x + r.width) && (j < r.y || j > r.y + r.height)) {
+
+                        if (isTrue) {
+                            System.err.println(" size > " + val.length);
+                            isTrue = false;
+                        }
+//                        if (0 != val[0] && 0 != val[1] && 0 != val[2]) {
+//                            System.err.println(val[0] + " ," + val[1] + " ," + val[2]);
+                        hist[(int) val[0]]++;
+//                        }
+                    }
+                }
+            }
+        }
+        int[] bin_hist = new int[256 / binSize];
+        int s = 0;
+        int sumBin = 0;
+        System.err.println("************* histogram  >>>>>>>>>>>");
+        for (int i = 0; i < 256;) {
+
+            for (int k = 0; k < binSize; k++) {
+                sumBin += hist[i++];
+            }
+            bin_hist[s++] = sumBin;
+            System.err.print(sumBin + "   ");
+//            sumBin = 0;
+        }
+        System.err.println("///////////////////////////////");
+        // draw the histograms
+        int hist_w = 512;
+        int hist_h = 400;
+        int bin_w = (int) ((double) hist_w / 256);
+        
+        int bin_16 = (int) ((double) hist_w / 16);
+
+        Mat histImage = new Mat(hist_h, hist_w, CV_8UC1, new Scalar(255, 255, 255));
+        
+        Mat binhistImage = new Mat(hist_h, hist_w, CV_8UC1, new Scalar(255, 255, 255));
+
+        // find the maximum intensity element from histogram
+        int max = hist[0];
+        for (int i = 1; i < 256; i++) {
+            if (max < hist[i]) {
+                max = hist[i];
+            }
+        }
+        
+        // normalize the histogram between 0 and histImage.rows
+        for (int i = 0; i < 256; i++) {
+            hist[i] = (int) (((double) hist[i] / max) * histImage.rows());
+        }
+        
+        // find the maximum intensity element from histogram
+        max = bin_hist[0];
+        for (int i = 1; i < binSize; i++) {
+            if (max < bin_hist[i]) {
+                max = bin_hist[i];
+            }
+        }
+        //calculate uniform background
+        
+        uniformity_score = bin_hist[binSize -1] - bin_hist[0];
+        
+        // normalize the histogram between 0 and histImage.rows
+        for (int i = 0; i < binSize; i++) {
+            bin_hist[i] = (int) (((double) bin_hist[i] / max) * binhistImage.rows());
+        }
+
+        // draw the intensity line for histogram
+        for (int i = 0; i < 256; i++) {
+            Imgproc.line(histImage, new Point(bin_w * (i), hist_h),
+                    new Point(bin_w * (i), hist_h - hist[i]),
+                    new Scalar(0, 0, 0), 1, 8, 0);
+        }
+        
+        // draw the intensity line for histogram
+        for (int i = 0; i < binSize; i++) {
+            Imgproc.line(binhistImage, new Point(bin_16 * (i), hist_h),
+                    new Point(bin_16* (i), hist_h - bin_hist[i]),
+                    new Scalar(0, 0, 0), 32, 8, 0);
+        }
+
+        // display histogram
+        Imgcodecs.imwrite("D:/histIMage.jpg", histImage);
+        
+        // display histogram
+        Imgcodecs.imwrite("D:/binhistIMage.jpg", binhistImage);
+//        HighGui.imshow("Histogram", histImage);
+
+    }
+
     public BufferedImage cropingIMage(Mat image) throws IOException {
         BufferedImage out = null;
         MatOfInt rejectLevels = new MatOfInt();
@@ -601,6 +936,7 @@ public class VideoController implements Initializable {
         if (image != null) {
             this.frameData = new FrameData();
             MatOfRect faces = new MatOfRect();
+            MatOfRect facesOnly = new MatOfRect();
             Mat grayFrame = new Mat();
             // convert the frame in gray scale
             Imgproc.cvtColor(image, grayFrame, Imgproc.COLOR_BGR2GRAY);
@@ -626,6 +962,7 @@ public class VideoController implements Initializable {
             }
 
             this.faceCascade.detectMultiScale3(grayFrame, faces, rejectLevels, levelWeights, scale_factor, min_neighbors, 0, new Size(this.absoluteFaceSize, this.absoluteFaceSize), new Size(), cameraActive);
+            this.faceCascade.detectMultiScale3(grayFrame, facesOnly, rejectLevels, levelWeights, scale_factor, min_neighbors, 0, new Size(Math.round(height * 0.3f) > 0 ? Math.round(height * 0.3f) : 0, Math.round(height * 0.3f) > 0 ? Math.round(height * 0.3f) : 0), new Size(), cameraActive);
             // System.out.println(String.format("Detected %s faces", faces.toArray().length));
             // each rectangle in faces is a face: draw them!
 //        Rect rect_Crop = null;
@@ -638,6 +975,7 @@ public class VideoController implements Initializable {
                 weight = levelWeights.toArray();
             }
             Rect[] facesArray = faces.toArray();
+            Rect[] facesCrop = facesOnly.toArray();
             for (int i = 0; i < facesArray.length; i++) {
 
                 if ((facesArray[i].x - (int) Math.ceil(leftFacePart * totalWidth)) >= 0 && (facesArray[i].y - (int) Math.ceil(upperFacePart * totalHeight)) >= 0 && (facesArray[i].width + 2 * ((int) Math.ceil(rightFacePart * totalWidth))) <= (image.width() - facesArray[i].x + (int) Math.ceil(rightFacePart * totalWidth)) && (facesArray[i].height + (int) Math.ceil(lowerFacePart * totalHeight) + (int) Math.ceil(lowerFacePart * totalHeight)) <= (image.height() - facesArray[i].y + (int) Math.ceil(lowerFacePart * totalHeight))) {
@@ -655,13 +993,16 @@ public class VideoController implements Initializable {
                 Point showScoreP = new Point(20, 20);
                 face_score = (float) weight[i];
                 String score = "Captured Face  Score : " + face_score;
-                
 
                 Imgproc.putText(grayFrame, score, showScoreP, 1, 1, new Scalar(0, 255, 0), 2);
 //            System.err.println("rejectLevels Score > " + scoreFace[i] + " levelWeights > " + weight[i]);
                 Imgproc.rectangle(grayFrame, facesArray[i].tl(), facesArray[i].br(), new Scalar(0, 255, 0), 3);
 
-                Mat faceROI = grayFrame.submat(facesArray[i]);
+                Mat faceROI = grayFrame.submat(facesCrop[i]);
+
+                if (!isCrop) {
+                    calculateUniformity(grayFrame, this.cropX, this.cropY, this.cropWidth, this.cropHeight, facesCrop[i]);
+                }
 
                 Imgcodecs.imwrite("D:\\faceROI.jpg", faceROI);
                 int scoreIndex = 0;
@@ -685,7 +1026,6 @@ public class VideoController implements Initializable {
                     }
                     eye_score = rejectLevels.toArray()[scoreIndex++];
                     String eyeScore = "Eye SCore : " + eye_score;
-                    
 
                 }
 
@@ -699,7 +1039,7 @@ public class VideoController implements Initializable {
                 for (Rect n : listOfNose) {
                     nose_score = rejectLevels.toArray()[scoreIndex++];
                     String noseScore = "Nose SCore : " + nose_score;
-                    
+
                 }
 
                 // Detect mouth if classifier provided by the user
@@ -772,6 +1112,9 @@ public class VideoController implements Initializable {
                                 break;
                             case NOSE:
                                 nowAttributeClone.setScore(nose_score);
+                                break;
+                            case BACKGROUND_UNIFORMITY:
+                                nowAttributeClone.setScore(uniformity_score);
                                 break;
                             case CONTRAST:
                                 //calculate contrast
